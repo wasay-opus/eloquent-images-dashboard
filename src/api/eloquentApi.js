@@ -15,7 +15,7 @@ function forceSignOut() {
 async function parseResponse(response) {
   const data = await response.json().catch(() => ({}));
 
-  if (response.status === 401 && getAuthToken()) {
+  if (response.status === 401) {
     forceSignOut();
     throw new Error(data.message || "Your session has expired. Please sign in again.");
   }
@@ -401,6 +401,97 @@ export async function deleteCategory(id, token) {
 
 // ── Gallery Images ────────────────────────────────────────
 
+export async function fetchHomeCategories(token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-get-all-categories`, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...authHeaders(token),
+    },
+  });
+  const data = await parseResponse(response);
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.categories)) return data.categories;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+export async function fetchHomeCategory(id, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-get-category/${Number(id)}`, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...authHeaders(token),
+    },
+  });
+  const data = await parseResponse(response);
+  return data.data || data;
+}
+
+export async function createHomeCategory(payload, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-categories`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response);
+}
+
+export async function updateHomeCategory(id, payload, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-update-categories/${Number(id)}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse(response);
+}
+
+export async function deleteHomeCategory(id, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-delete-category/${Number(id)}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      ...authHeaders(token),
+    },
+  });
+  return parseResponse(response);
+}
+
+export async function addHomeCategoryImage({ categoryId, imageId }, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-category-image`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({
+      category_id: Number(categoryId),
+      image_id: Number(imageId),
+    }),
+  });
+  return parseResponse(response);
+}
+
+export async function deleteHomeCategoryImage(id, token) {
+  const response = await fetch(`${API_BASE}/api/whatsnew-category-image/${Number(id)}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      ...authHeaders(token),
+    },
+  });
+  return parseResponse(response);
+}
+
 export async function fetchGalleryImages({
   categoryId,
   page = 1,
@@ -676,7 +767,7 @@ export async function syncCategoryAlphabeticalSortOrder(categoryId, token, { con
 
   const { images } = await fetchAllGalleryImages({
     categoryId: activeCategoryId,
-    limit: 100,
+    limit: 1000,
     sortBy: "title",
   });
   const sortedImages = sortImagesByTitle(images);

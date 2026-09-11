@@ -18,6 +18,16 @@ const menuItems = [
     label: "Categories",
     path: "/categories",
   },
+  {
+    icon: "solar:stars-minimalistic-outline",
+    label: "What's New",
+    path: "/whats-new",
+  },
+  {
+    icon: "solar:home-smile-angle-outline",
+    label: "Home Categories",
+    path: "/home-categories",
+  },
   
   {
     icon: "solar:document-text-outline",

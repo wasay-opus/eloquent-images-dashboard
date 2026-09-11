@@ -9,6 +9,8 @@ import EloquentUsersPage from "./adminPages/EloquentUsersPage";
 import EloquentPrintfulOrdersPage from "./adminPages/EloquentPrintfulOrdersPage";
 import EloquentGalleryCreatePage from "./adminPages/EloquentGalleryCreatePage";
 import EloquentGalleryPage from "./adminPages/EloquentGalleryPage";
+import EloquentHomeCategoriesPage from "./adminPages/EloquentHomeCategoriesPage";
+import EloquentWhatsNewPage from "./adminPages/EloquentWhatsNewPage";
 import SignInPage from "./adminPages/SignInPage";
 import ErrorPage from "./adminPages/ErrorPage";
 import RouteScrollToTop from "./helper/RouteScrollToTop";
@@ -40,6 +42,18 @@ function App() {
         <Route
           path="/categories/create"
           element={<ProtectedRoute element={EloquentCategoryCreatePage} />}
+        />
+        <Route
+          path="/whats-new"
+          element={<ProtectedRoute element={EloquentWhatsNewPage} />}
+        />
+        <Route
+          path="/home-categories"
+          element={<ProtectedRoute element={EloquentHomeCategoriesPage} />}
+        />
+        <Route
+          path="/home-categories/:categoryId"
+          element={<ProtectedRoute element={EloquentHomeCategoriesPage} />}
         />
         <Route
           path="/gallery"

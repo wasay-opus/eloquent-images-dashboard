@@ -27,7 +27,11 @@ const swalOptions = {
 };
 
 const GALLERY_PAGE_SIZE = 15;
-const GALLERY_LIST_PAGE_SIZE = 100;
+const GALLERY_LIST_PAGE_SIZE = 1000;
+
+function getSortOrderDraftKey(imageId, categoryId) {
+  return `${categoryId || "all"}:${imageId}`;
+}
 
 function getImageName(image) {
   const name = image.title || image.originalName || image.fileName || image.filename;
@@ -318,7 +322,7 @@ const EloquentGalleryPage = () => {
         const orderOffset = isListView ? 0 : (Math.max(1, Number(pageNumber) || 1) - 1) * GALLERY_PAGE_SIZE;
         nextImages.forEach((image, index) => {
           const categoryOrder = getImageCategory(image, categoryId)?.sortOrder;
-          next[image.id] = String(categoryOrder || orderOffset + index + 1);
+          next[getSortOrderDraftKey(image.id, categoryId)] = String(categoryOrder || orderOffset + index + 1);
         });
         return next;
       });
@@ -587,7 +591,10 @@ const EloquentGalleryPage = () => {
   };
 
   const handleSortOrderChange = (imageId, value) => {
-    setSortOrderDrafts((current) => ({ ...current, [imageId]: value }));
+    setSortOrderDrafts((current) => ({
+      ...current,
+      [getSortOrderDraftKey(imageId, activeCategory)]: value,
+    }));
   };
 
   const handleSaveSortOrder = async (image) => {
@@ -611,7 +618,7 @@ const EloquentGalleryPage = () => {
       return;
     }
 
-    const sortOrder = Number(sortOrderDrafts[image.id]);
+    const sortOrder = Number(sortOrderDrafts[getSortOrderDraftKey(image.id, activeCategory)]);
     if (!Number.isInteger(sortOrder) || sortOrder <= 0) {
       await Swal.fire({
         ...swalOptions,
@@ -659,7 +666,7 @@ const EloquentGalleryPage = () => {
       setSortOrderDrafts((current) => {
         const next = { ...current };
         reorderedImagesWithOrder.forEach((item, index) => {
-          next[item.id] = String(index + 1);
+          next[getSortOrderDraftKey(item.id, activeCategory)] = String(index + 1);
         });
         return next;
       });
@@ -712,6 +719,7 @@ const EloquentGalleryPage = () => {
   const renderSortOrderControl = (image, className = "") => {
     const birdsCategoryActive = isBirdsCategory(getCategoryById(categories, activeCategory));
     const disabled = !activeCategory || birdsCategoryActive || savingSortOrderId === image.id;
+    const draftKey = getSortOrderDraftKey(image.id, activeCategory);
 
     return (
       <div className={`eloquent-sort-order-control ${className}`.trim()}>
@@ -722,7 +730,7 @@ const EloquentGalleryPage = () => {
           min="1"
           onChange={(event) => handleSortOrderChange(image.id, event.target.value)}
           type="number"
-          value={sortOrderDrafts[image.id] || ""}
+          value={sortOrderDrafts[draftKey] || ""}
         />
         <button
           disabled={disabled}

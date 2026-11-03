@@ -126,3 +126,27 @@ export async function addGalleryWatermark(file) {
     lastModified: Date.now(),
   });
 }
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+// Watermarks a list of files with the exact gallery watermark.
+// Videos and other non-image files are passed through untouched.
+export async function addWatermarkToFiles(files = [], concurrency = 3) {
+  if (!GALLERY_WATERMARK_ENABLED || files.length === 0) return files;
+  return mapWithConcurrency(files, concurrency, addGalleryWatermark);
+}

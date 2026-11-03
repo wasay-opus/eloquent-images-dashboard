@@ -6,6 +6,11 @@ import MasterLayout from "../otherImages/MasterLayout";
 import BlogContentEditor, { isBlogContentEmpty } from "../components/BlogContentEditor";
 import EloquentMedia from "../components/EloquentMedia";
 import { addBlogImages, createBlog, fetchCategories, getAuthToken } from "../api/eloquentApi";
+import {
+  addGalleryWatermark,
+  addWatermarkToFiles,
+  GALLERY_WATERMARK_ENABLED,
+} from "../utils/watermarkImage";
 
 const emptyForm = {
   title: "",
@@ -51,6 +56,7 @@ const EloquentBlogCreatePage = () => {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState("");
 
   useEffect(() => {
     fetchCategories()
@@ -87,11 +93,21 @@ const EloquentBlogCreatePage = () => {
     setSubmitting(true);
     try {
       const token = getAuthToken();
+
+      if (form.featuredImage || form.s3Images.length > 0) {
+        setSubmitStep(GALLERY_WATERMARK_ENABLED ? "Applying watermarks..." : "Preparing images...");
+      }
+      const featuredImage = form.featuredImage
+        ? await addGalleryWatermark(form.featuredImage)
+        : null;
+      const galleryFiles = await addWatermarkToFiles(form.s3Images);
+
+      setSubmitStep("Creating blog...");
       const result = await createBlog(
         {
           title: form.title,
           content: stripManagedImages(form.content),
-          featuredImage: form.featuredImage,
+          featuredImage,
           status: form.status,
           categoryId: Number(form.categoryId),
         },
@@ -100,11 +116,12 @@ const EloquentBlogCreatePage = () => {
       const createdBlogId =
         result.data?.id || result.blog?.id || result.data?.blog?.id || result.id;
 
-      if (form.s3Images.length > 0) {
+      if (galleryFiles.length > 0) {
         if (!createdBlogId) {
           throw new Error("Blog was created, but its ID was not returned for gallery upload.");
         }
-        await addBlogImages(createdBlogId, form.s3Images, token);
+        setSubmitStep("Uploading images...");
+        await addBlogImages(createdBlogId, galleryFiles, token);
       }
       await Swal.fire({
         ...swalOptions,
@@ -122,6 +139,7 @@ const EloquentBlogCreatePage = () => {
       });
     } finally {
       setSubmitting(false);
+      setSubmitStep("");
     }
   };
 
@@ -264,7 +282,7 @@ const EloquentBlogCreatePage = () => {
             style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}
           >
             <button className="eloquent-btn" disabled={submitting} type="submit">
-              {submitting ? "Creating..." : "Create Blog"}
+              {submitting ? submitStep || "Creating..." : "Create Blog"}
             </button>
             <button
               className="eloquent-btn eloquent-btn-secondary"

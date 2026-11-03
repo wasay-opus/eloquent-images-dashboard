@@ -14,6 +14,11 @@ import {
   getAuthToken,
   updateBlog,
 } from "../api/eloquentApi";
+import {
+  addGalleryWatermark,
+  addWatermarkToFiles,
+  GALLERY_WATERMARK_ENABLED,
+} from "../utils/watermarkImage";
 
 const swalOptions = {
   background: "#1e1e1e",
@@ -71,6 +76,8 @@ const EloquentBlogEditPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState(null);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [submitStep, setSubmitStep] = useState("");
+  const [galleryStep, setGalleryStep] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -178,12 +185,20 @@ const EloquentBlogEditPage = () => {
     try {
       const token = getAuthToken();
 
+      if (form.featuredImage) {
+        setSubmitStep(GALLERY_WATERMARK_ENABLED ? "Applying watermark..." : "Preparing image...");
+      }
+      const featuredImage = form.featuredImage
+        ? await addGalleryWatermark(form.featuredImage)
+        : null;
+
+      setSubmitStep("Saving...");
       await updateBlog(
         {
           id: blog.id,
           title: form.title,
           content: stripManagedImages(form.content),
-          featuredImage: form.featuredImage,
+          featuredImage,
           status: form.status,
           categoryId: Number(form.categoryId),
         },
@@ -206,6 +221,7 @@ const EloquentBlogEditPage = () => {
       });
     } finally {
       setSubmitting(false);
+      setSubmitStep("");
     }
   };
 
@@ -311,7 +327,7 @@ const EloquentBlogEditPage = () => {
 
           <div className="col-12" style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button className="eloquent-btn" disabled={submitting} type="submit">
-              {submitting ? "Saving..." : "Save Changes"}
+              {submitting ? submitStep || "Saving..." : "Save Changes"}
             </button>
             <button
               className="eloquent-btn eloquent-btn-secondary"
@@ -434,7 +450,12 @@ const EloquentBlogEditPage = () => {
                   setUploadingGallery(true);
                   try {
                     const count = form.newGalleryImages.length;
-                    const result = await addBlogImages(blog.id, form.newGalleryImages, getAuthToken());
+                    setGalleryStep(
+                      GALLERY_WATERMARK_ENABLED ? "Applying watermarks..." : "Preparing images..."
+                    );
+                    const galleryFiles = await addWatermarkToFiles(form.newGalleryImages);
+                    setGalleryStep("Uploading...");
+                    const result = await addBlogImages(blog.id, galleryFiles, getAuthToken());
                     const uploaded = Array.isArray(result.data) ? result.data : [];
                     if (uploaded.length > 0) {
                       setBlog((current) => ({
@@ -467,13 +488,14 @@ const EloquentBlogEditPage = () => {
                     });
                   } finally {
                     setUploadingGallery(false);
+                    setGalleryStep("");
                   }
                 }}
                 type="button"
               >
                 <Icon icon="solar:upload-minimalistic-linear" width="16" />
                 {uploadingGallery
-                  ? "Uploading..."
+                  ? galleryStep || "Uploading..."
                   : `Upload ${form.newGalleryImages.length} Media File${form.newGalleryImages.length !== 1 ? "s" : ""}`}
               </button>
             </>

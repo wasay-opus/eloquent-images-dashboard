@@ -1,5 +1,5 @@
 import { Icon } from "@iconify/react/dist/iconify.js";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import {
   fetchCategories,
@@ -40,43 +40,13 @@ function getWhatsNewFact(image = {}) {
   ).trim();
 }
 
-function getCategoryId(category = {}) {
-  const id = Number(category.id ?? category.categoryId);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
-function getImageCategoryRank(image = {}, categoryRankMap = new Map()) {
-  const ranks = (image.categories || [])
-    .map((category) => categoryRankMap.get(String(getCategoryId(category))))
-    .filter((rank) => Number.isInteger(rank));
-
-  return ranks.length ? Math.min(...ranks) : Number.MAX_SAFE_INTEGER;
-}
-
-function getImageSortOrder(image = {}) {
-  const sortOrders = (image.categories || [])
-    .map((category) => Number(category.sortOrder))
-    .filter((sortOrder) => Number.isFinite(sortOrder) && sortOrder > 0);
-
-  return sortOrders.length ? Math.min(...sortOrders) : Number.MAX_SAFE_INTEGER;
-}
-
-function sortWhatsNewImages(images = [], categories = []) {
-  const categoryRankMap = new Map(categories.map((category, index) => [String(category.id), index]));
-
-  return [...images].sort((first, second) => {
-    const categoryDiff =
-      getImageCategoryRank(first, categoryRankMap) - getImageCategoryRank(second, categoryRankMap);
-    if (categoryDiff !== 0) return categoryDiff;
-
-    const sortOrderDiff = getImageSortOrder(first) - getImageSortOrder(second);
-    if (sortOrderDiff !== 0) return sortOrderDiff;
-
-    return getImageName(first).localeCompare(getImageName(second), undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-  });
+function shuffleArray(array = []) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 function getImageCategoryNames(image = {}) {
@@ -96,7 +66,7 @@ const EloquentWhatsNewPage = () => {
   const [removingId, setRemovingId] = useState(null);
   const [error, setError] = useState("");
 
-  const sortedImages = useMemo(() => sortWhatsNewImages(images, categories), [categories, images]);
+  const sortedImages = images;
 
   const loadPage = useCallback(async () => {
     setLoading(true);
@@ -105,7 +75,8 @@ const EloquentWhatsNewPage = () => {
       const [categoryData, imageData] = await Promise.all([fetchCategories(), fetchWhatsNewGalleryImages()]);
       const sortedCategoryData = Array.isArray(categoryData) ? categoryData : [];
       setCategories(sortedCategoryData);
-      setImages(imageData);
+      const randomizedImages = shuffleArray(imageData || []);
+      setImages(randomizedImages);
       setDrafts((current) => {
         const next = { ...current };
         imageData.forEach((image) => {
@@ -202,7 +173,7 @@ const EloquentWhatsNewPage = () => {
               <span>Total What's New</span>
               <strong>{sortedImages.length}</strong>
             </div>
-            <p>Order follows the existing category order and each image's category sort order.</p>
+            <p>Sequence is randomized so What's New displays a fresh, random order.</p>
           </div>
         )}
 

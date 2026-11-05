@@ -84,37 +84,12 @@ function getIdValue(value) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-function getCategoryPayloadId(category) {
-  return getIdValue(category?.id ?? category?.categoryId);
-}
-
 function buildSortOrderCategories(image, activeCategoryId, sortOrder) {
   const categoryId = getIdValue(activeCategoryId);
-  const seen = new Set();
-  const categories = (image.categories || [])
-    .map((category) => {
-      const existingCategoryId = getCategoryPayloadId(category);
-      if (!existingCategoryId || seen.has(existingCategoryId)) return null;
-
-      seen.add(existingCategoryId);
-      const existingSortOrder = Number(category.sortOrder);
-      return {
-        categoryId: existingCategoryId,
-        sortOrder:
-          existingCategoryId === categoryId
-            ? sortOrder
-            : Number.isInteger(existingSortOrder) && existingSortOrder > 0
-              ? existingSortOrder
-              : sortOrder,
-      };
-    })
-    .filter(Boolean);
-
-  if (categoryId && !seen.has(categoryId)) {
-    categories.push({ categoryId, sortOrder });
-  }
-
-  return categories;
+  if (!categoryId) return [];
+  // Send ONLY the active category so alphabetical synchronization
+  // remains completely independent and does not touch other categories.
+  return [{ categoryId, sortOrder: Number(sortOrder) }];
 }
 
 function sortImagesByTitle(images = []) {

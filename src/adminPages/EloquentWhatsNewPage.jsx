@@ -2,7 +2,6 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 import React, { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import {
-  fetchCategories,
   fetchWhatsNewGalleryImages,
   getAuthSession,
   updateGalleryImageIsNew,
@@ -50,15 +49,19 @@ function shuffleArray(array = []) {
 }
 
 function getImageCategoryNames(image = {}) {
+  const seen = new Set();
   return (image.categories || [])
-    .map((category) => category.name || category.category?.name)
-    .filter(Boolean)
+    .map((category) => (category.name || category.category?.name || "").trim())
+    .filter((name) => {
+      if (!name || seen.has(name.toLowerCase())) return false;
+      seen.add(name.toLowerCase());
+      return true;
+    })
     .join(", ");
 }
 
 const EloquentWhatsNewPage = () => {
   const token = getAuthSession()?.token;
-  const [categories, setCategories] = useState([]);
   const [images, setImages] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -72,9 +75,7 @@ const EloquentWhatsNewPage = () => {
     setLoading(true);
     setError("");
     try {
-      const [categoryData, imageData] = await Promise.all([fetchCategories(), fetchWhatsNewGalleryImages()]);
-      const sortedCategoryData = Array.isArray(categoryData) ? categoryData : [];
-      setCategories(sortedCategoryData);
+      const imageData = await fetchWhatsNewGalleryImages();
       const randomizedImages = shuffleArray(imageData || []);
       setImages(randomizedImages);
       setDrafts((current) => {

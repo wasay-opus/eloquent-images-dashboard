@@ -49,10 +49,25 @@ function getCategoryId(category) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function deduplicateCategories(categories = []) {
+  const seen = new Set();
+  return (categories || []).filter((cat) => {
+    const key = String(cat?.id ?? cat?.categoryId ?? cat?.name ?? "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getImageCategoryNames(image) {
+  const uniqueCats = deduplicateCategories(image?.categories);
+  return uniqueCats.map((cat) => cat.name || cat.category?.name).filter(Boolean).join(", ");
+}
+
 function getImageCategoryIds(image) {
   return [
     ...new Set(
-      (image?.categories || [])
+      deduplicateCategories(image?.categories)
         .map(getCategoryId)
         .filter(Boolean)
         .map(String)
@@ -206,31 +221,12 @@ function withCategorySortOrder(image, categoryId, sortOrder) {
 
 function getSortOrderPayloadCategories(image, categoryId, sortOrder) {
   const activeCategoryId = Number(categoryId);
-  const seenCategoryIds = new Set();
-  const payloadCategories = (image.categories || [])
-    .map((category) => {
-      const categoryIdValue = getCategoryId(category);
-      if (!categoryIdValue || seenCategoryIds.has(categoryIdValue)) return null;
-
-      seenCategoryIds.add(categoryIdValue);
-      const existingSortOrder = Number(category.sortOrder);
-      const preservedSortOrder =
-        Number.isInteger(existingSortOrder) && existingSortOrder > 0
-          ? existingSortOrder
-          : sortOrder;
-
-      return {
-        categoryId: categoryIdValue,
-        sortOrder: categoryIdValue === activeCategoryId ? sortOrder : preservedSortOrder,
-      };
-    })
-    .filter(Boolean);
-
-  if (Number.isInteger(activeCategoryId) && activeCategoryId > 0 && !seenCategoryIds.has(activeCategoryId)) {
-    payloadCategories.push({ categoryId: activeCategoryId, sortOrder });
+  if (!Number.isInteger(activeCategoryId) || activeCategoryId <= 0) {
+    return [];
   }
-
-  return payloadCategories;
+  // Send ONLY the active category so that the sort order of this category
+  // remains completely independent and never modifies or resets other categories.
+  return [{ categoryId: activeCategoryId, sortOrder: Number(sortOrder) }];
 }
 
 function mergeImageSortOrderFromResponse(image, responseImage, categoryId) {
@@ -291,9 +287,14 @@ const EloquentGalleryPage = () => {
       const nextWhatsNewById = new Map(whatsNewImages.map((image) => [String(image.id), image]));
       setWhatsNewIds(nextWhatsNewIds);
 
+      const sanitizedImages = (data.images || []).map((img) => ({
+        ...img,
+        categories: deduplicateCategories(img.categories),
+      }));
+
       const allPageImages = options.deletedImageId
-        ? data.images.filter((image) => String(image.id) !== String(options.deletedImageId))
-        : data.images;
+        ? sanitizedImages.filter((image) => String(image.id) !== String(options.deletedImageId))
+        : sanitizedImages;
       const pageImages = shouldClientPageBirds
         ? sortGalleryImages(allPageImages, categoryId, selectedCategory).slice(
             (Math.max(1, Number(pageNumber) || 1) - 1) * GALLERY_PAGE_SIZE,
@@ -358,18 +359,158 @@ const EloquentGalleryPage = () => {
     setPage(1);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (target) => {
+    const image =
+      typeof target === "object" && target !== null
+        ? target
+        : images.find((img) => String(img.id) === String(target));
+    const id = image?.id ?? target;
+    if (!id) return;
+
+    const imageCategories = image?.categories || [];
+    const activeCatObj = getCategoryById(categories, activeCategory);
+    const activeCatName = activeCatObj?.name || "this category";
+    const isInCategoryView = Boolean(activeCategory);
+    const isInMultipleCategories = imageCategories.length > 1;
+    const isImageInActiveCategory =
+      isInCategoryView &&
+      imageCategories.some((c) => String(c.id ?? c.categoryId) === String(activeCategory));
+
+    if (isInCategoryView && isInMultipleCategories && isImageInActiveCategory) {
+      const otherCategoryList = imageCategories
+        .filter((c) => String(c.id ?? c.categoryId) !== String(activeCategory))
+        .map((c) => c.name || c.category?.name || "Other category");
+      const otherCategories = otherCategoryList.join(", ");
+      const otherChipsHtml = otherCategoryList
+        .map((name) => `<span class="eloquent-modal-chip other">${name}</span>`)
+        .join("");
+
+      const result = await Swal.fire({
+        ...swalOptions,
+        title: "Remove or Delete?",
+        customClass: {
+          popup: "eloquent-swal-popup eloquent-swal-multi-delete-popup",
+          actions: "eloquent-swal-multi-actions",
+          confirmButton: "eloquent-btn-remove-cat",
+          denyButton: "eloquent-btn-delete-perm",
+          cancelButton: "eloquent-btn-cancel-modal",
+        },
+        html: `
+          <div class="eloquent-delete-modal-body">
+            <div class="eloquent-delete-item-banner">
+              <span class="eloquent-delete-item-label">Image</span>
+              <strong class="eloquent-delete-item-title">${getImageName(image)}</strong>
+            </div>
+
+            <div class="eloquent-delete-category-grid">
+              <div class="eloquent-category-row">
+                <span class="eloquent-category-meta-label">Selected category:</span>
+                <span class="eloquent-modal-chip active">${activeCatName}</span>
+              </div>
+              <div class="eloquent-category-row">
+                <span class="eloquent-category-meta-label">Also appears in:</span>
+                <div class="eloquent-modal-chips-container">
+                  ${otherChipsHtml}
+                </div>
+              </div>
+            </div>
+
+            <p class="eloquent-delete-instructions">
+              This photo belongs to multiple categories. Choose an action:
+            </p>
+          </div>
+        `,
+        icon: "warning",
+        iconColor: "#f59e0b",
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: `Remove from "${activeCatName}" only`,
+        denyButtonText: "Delete Permanently (from all categories)",
+        cancelButtonText: "Cancel",
+        reverseButtons: false,
+      });
+
+      if (result.isConfirmed) {
+        setDeletingId(id);
+        try {
+          const remainingCategoryIds = imageCategories
+            .filter((c) => String(c.id ?? c.categoryId) !== String(activeCategory))
+            .map((c) => String(c.id ?? c.categoryId));
+
+          await updateGalleryImageCategories(id, remainingCategoryIds, token);
+          setImages((current) => current.filter((img) => String(img.id) !== String(id)));
+          const currentTotal = toFiniteNumber(meta.totalItems);
+          const maxTotalItemsAfterDelete = Math.max(0, (currentTotal ?? images.length) - 1);
+          setMeta((current) => limitMetaTotal(current, maxTotalItemsAfterDelete));
+          await loadImages(activeCategory, page, {
+            deletedImageId: id,
+            maxTotalItems: maxTotalItemsAfterDelete,
+          });
+          await Swal.fire({
+            ...swalOptions,
+            icon: "success",
+            title: "Removed from Category",
+            text: `The image was removed from "${activeCatName}". It is still available in: ${otherCategories}.`,
+          });
+        } catch (err) {
+          await Swal.fire({
+            ...swalOptions,
+            icon: "error",
+            title: "Could not remove image",
+            text: err.message || "Please try again.",
+          });
+        } finally {
+          setDeletingId(null);
+        }
+        return;
+      }
+
+      if (result.isDenied) {
+        setDeletingId(id);
+        try {
+          const currentTotal = toFiniteNumber(meta.totalItems);
+          const maxTotalItemsAfterDelete = Math.max(0, (currentTotal ?? images.length) - 1);
+
+          await deleteImage(id, token);
+          setImages((current) => current.filter((img) => String(img.id) !== String(id)));
+          setMeta((current) => limitMetaTotal(current, maxTotalItemsAfterDelete));
+          await loadImages(activeCategory, page, {
+            deletedImageId: id,
+            maxTotalItems: maxTotalItemsAfterDelete,
+          });
+          await Swal.fire({
+            ...swalOptions,
+            icon: "success",
+            title: "Permanently Deleted",
+            text: "The image has been completely removed from the database.",
+          });
+        } catch (err) {
+          await Swal.fire({
+            ...swalOptions,
+            icon: "error",
+            title: "Could not delete image",
+            text: err.message || "Please try again.",
+          });
+        } finally {
+          setDeletingId(null);
+        }
+        return;
+      }
+
+      return;
+    }
+
     const confirmation = await Swal.fire({
       ...swalOptions,
       cancelButtonColor: "#273441",
       cancelButtonText: "Cancel",
       confirmButtonColor: "#b84f57",
-      confirmButtonText: "Delete",
+      confirmButtonText: "Delete Permanently",
       icon: "warning",
       reverseButtons: true,
       showCancelButton: true,
-      text: "This image will be permanently removed.",
-      title: "Delete image?",
+      text: `"${getImageName(image)}" will be permanently removed from the database.`,
+      title: "Delete permanently?",
     });
 
     if (!confirmation.isConfirmed) return;
@@ -380,7 +521,7 @@ const EloquentGalleryPage = () => {
       const maxTotalItemsAfterDelete = Math.max(0, (currentTotal ?? images.length) - 1);
 
       await deleteImage(id, token);
-      setImages((current) => current.filter((image) => String(image.id) !== String(id)));
+      setImages((current) => current.filter((img) => String(img.id) !== String(id)));
       setMeta((current) => limitMetaTotal(current, maxTotalItemsAfterDelete));
       await loadImages(activeCategory, page, {
         deletedImageId: id,
@@ -390,7 +531,7 @@ const EloquentGalleryPage = () => {
         ...swalOptions,
         icon: "success",
         title: "Image deleted",
-        text: "The image has been removed from the gallery.",
+        text: "The image has been permanently removed from the gallery.",
       });
     } catch (err) {
       await Swal.fire({
@@ -1000,9 +1141,7 @@ const EloquentGalleryPage = () => {
                       </td>
                       <td>
                         <span>
-                          {image.categories?.length
-                            ? image.categories.map((cat) => cat.name).join(", ")
-                            : "Uncategorized"}
+                          {getImageCategoryNames(image) || "Uncategorized"}
                         </span>
                       </td>
                       <td>
@@ -1022,7 +1161,7 @@ const EloquentGalleryPage = () => {
                             className="eloquent-gallery-delete-btn"
                             aria-label={`Delete ${getImageName(image)}`}
                             disabled={deletingId === image.id}
-                            onClick={() => handleDelete(image.id)}
+                            onClick={() => handleDelete(image)}
                             title="Delete image"
                             type="button"
                           >
@@ -1153,9 +1292,7 @@ const EloquentGalleryPage = () => {
                       <strong title={getImageName(image)}>{getImageName(image)}</strong>
                     )}
                     <small>
-                      {image.categories?.length
-                        ? image.categories.map((cat) => cat.name).join(", ")
-                        : "Uncategorized"}
+                      {getImageCategoryNames(image) || "Uncategorized"}
                     </small>
                   </div>
                   {editingTitleId !== image.id && (
@@ -1180,7 +1317,7 @@ const EloquentGalleryPage = () => {
                         className="eloquent-gallery-delete-btn"
                         aria-label={`Delete ${getImageName(image)}`}
                         disabled={deletingId === image.id}
-                        onClick={() => handleDelete(image.id)}
+                        onClick={() => handleDelete(image)}
                         title="Delete image"
                         type="button"
                       >

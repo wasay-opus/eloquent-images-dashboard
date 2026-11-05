@@ -5196,3 +5196,187 @@ body,
     flex: 1;
   }
 }
+
+/* ==========================================================================
+   Multi-category Remove/Delete Confirmation Modal
+   ========================================================================== */
+.swal2-popup.eloquent-swal-multi-delete-popup {
+  width: min(94vw, 490px) !important;
+  padding: 28px 24px !important;
+  background: #141c28 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.85) !important;
+}
+
+.swal2-popup.eloquent-swal-multi-delete-popup .swal2-icon.swal2-warning {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  margin: 6px auto 14px !important;
+  width: 58px !important;
+  height: 58px !important;
+}
+
+.swal2-popup.eloquent-swal-multi-delete-popup .swal2-icon.swal2-warning .swal2-icon-content {
+  font-size: 34px !important;
+}
+
+.swal2-popup.eloquent-swal-multi-delete-popup .swal2-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+  margin-bottom: 12px !important;
+}
+
+.eloquent-delete-modal-body {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.eloquent-delete-item-banner {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eloquent-delete-item-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.eloquent-delete-item-title {
+  font-size: 14px;
+  color: #f1f5f9;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.eloquent-delete-category-grid {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eloquent-category-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.eloquent-category-meta-label {
+  font-size: 12px;
+  color: #94a3b8;
+  min-width: 120px;
+  font-weight: 500;
+}
+
+.eloquent-modal-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.eloquent-modal-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.eloquent-modal-chip.active {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.eloquent-modal-chip.other {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.eloquent-delete-instructions {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* Stacked modern modal buttons */
+.swal2-actions.eloquent-swal-multi-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  gap: 8px !important;
+  margin-top: 18px !important;
+}
+
+.swal2-actions.eloquent-swal-multi-actions button {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 11px 16px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border-radius: 9px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.18s ease !important;
+}
+
+.eloquent-btn-remove-cat {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #3b82f6 !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+}
+
+.eloquent-btn-remove-cat:hover {
+  background: #1d4ed8 !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45) !important;
+}
+
+.eloquent-btn-delete-perm {
+  background: rgba(184, 79, 87, 0.15) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(184, 79, 87, 0.4) !important;
+}
+
+.eloquent-btn-delete-perm:hover {
+  background: #b84f57 !important;
+  color: #ffffff !important;
+  border-color: #b84f57 !important;
+  box-shadow: 0 4px 12px rgba(184, 79, 87, 0.4) !important;
+}
+
+.eloquent-btn-cancel-modal {
+  background: transparent !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.eloquent-btn-cancel-modal:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
